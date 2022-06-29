@@ -5,8 +5,11 @@ SHELL := /bin/bash -o pipefail
 # the output is consistent across environments.
 VERSION ?= $(shell git describe --tags 2>/dev/null || git rev-parse --short HEAD)
 
+# Allows overriding go executable.
+GO_BIN ?= go
+
 # Enables support for tools such as https://github.com/rakyll/gotest
-TEST_COMMAND ?= go test
+TEST_COMMAND ?= $(GO_BIN) test
 
 # The compute tests can sometimes exceed the default 10m limit.
 TESTARGS ?= -timeout 15m ./{cmd,pkg}/...
@@ -18,31 +21,31 @@ CLI_ENV ?= "development"
 LDFLAGS = -ldflags "\
  -X 'github.com/fastly/cli/pkg/revision.AppVersion=${VERSION}' \
  -X 'github.com/fastly/cli/pkg/revision.GitCommit=$(shell git rev-parse --short HEAD || echo unknown)' \
- -X 'github.com/fastly/cli/pkg/revision.GoVersion=$(shell go version)' \
+ -X 'github.com/fastly/cli/pkg/revision.GoVersion=$(shell $(GO_BIN) version)' \
  -X 'github.com/fastly/cli/pkg/revision.Environment=${CLI_ENV}' \
  "
 
  GO_FILES = $(shell find cmd pkg -type f -name '*.go')
 
 fastly: $(GO_FILES)
-	@go build -trimpath $(LDFLAGS) -o "$@" ./cmd/fastly
+	@$(GO_BIN) build -trimpath $(LDFLAGS) -o "$@" ./cmd/fastly
 
 # useful for attaching a debugger such as https://github.com/go-delve/delve
 debug:
-	@go build -gcflags="all=-N -l" $(LDFLAGS) -o "fastly" ./cmd/fastly
+	@$(GO_BIN) build -gcflags="all=-N -l" $(LDFLAGS) -o "fastly" ./cmd/fastly
 
 .PHONY: all
 all: dependencies config tidy fmt vet staticcheck gosec test build install
 
 .PHONY: dependencies
 dependencies:
-	go install github.com/securego/gosec/v2/cmd/gosec@latest
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	go install github.com/mgechev/revive@latest
+	$(GO_BIN) install github.com/securego/gosec/v2/cmd/gosec@latest
+	$(GO_BIN) install honnef.co/go/tools/cmd/staticcheck@latest
+	$(GO_BIN) install github.com/mgechev/revive@latest
 
 .PHONY: tidy
 tidy:
-	go mod tidy
+	$(GO_BIN) mod tidy
 
 .PHONY: fmt
 fmt:
@@ -51,7 +54,7 @@ fmt:
 
 .PHONY: vet
 vet:
-	go vet ./{cmd,pkg}/...
+	$(GO_BIN) vet ./{cmd,pkg}/...
 
 .PHONY: revive
 revive:
@@ -71,11 +74,11 @@ test: config
 
 .PHONY: build
 build: config
-	go build $(LDFLAGS) ./cmd/fastly
+	$(GO_BIN) build $(LDFLAGS) ./cmd/fastly
 
 .PHONY: install
 install: config
-	go install $(LDFLAGS) ./cmd/fastly
+	$(GO_BIN) install $(LDFLAGS) ./cmd/fastly
 
 .PHONY: changelog
 changelog:
